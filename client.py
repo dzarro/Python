@@ -16,42 +16,48 @@ def send(*arg,**kwargs):
 # do some input sanity checks
 
 	if len(arg) == 0:
-		print("Input file name not entered.")
+		print("Client: Blank input")
 		return 
 		
 	file_path=arg[0]
 	if not isinstance(file_path,str):
-		print("Input file name must be a string.")
+		print("Client: Non-string input")
 		return 	
 	
-	if not os.path.exists(file_path):
-		print(f'Input file "{file_path}" not found')
-		return
+	if os.path.exists(file_path):
+		print(f'Client: Sending file "{file_path}"')
+		fsize=os.path.getsize(file_path)
+		print(f'Client: File size = {fsize} bytes')
+		asize=str(fsize)
+		file_flag=True
+	else:
+		print("Client: Sending text")
+		asize=str(0)
+		file_flag=False
 	
-	print(f'Sending file "{file_path}"')
-	fsize=os.path.getsize(file_path)
-	print(f'File size = {fsize} bytes')
-	asize=str(fsize)
 	bsize=asize.encode()
 	fname=file_path.encode()
 	
 	try:
-		with open(file_path, "rb") as f:
-			data = f.read()
-		print(f"Opening socket on {ip}:{port}")
+		if file_flag:
+			with open(file_path, "rb") as f:
+				data = f.read()
+				
+		print(f"Client: Opening socket on {ip}:{port}")
 		with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
 			s.connect((ip, port))
-			s.sendall(fname)    # send file name
-			s.sendall(bsize)    # send file size in bytes
-			s.sendall(data)     # send file data ib bytes
-			print("Sent data file")
+			s.sendall(fname)        # send text or file name
+			s.sendall(bsize)        # send size in bytes
+			if file_flag:     
+				s.sendall(data)     # send file data ib bytes
+			print("Client: Sent data")
 		
 	except Exception as e:
-		print(f"Error: {e}")
+		print(f"Client: Error: {e}")
 		return 
 		
 	finally:
-		print("Done")	
+		print("Client: Done")	
 	 
 if __name__ == "__main__":
     send(file_path)		
