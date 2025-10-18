@@ -33,6 +33,7 @@ def send(*arg,**kwargs):
 	else:
 		print("Client: Sending text")
 		asize=str(0)
+		fsize=1024
 		file_flag=False
 	
 	bsize=asize.encode()
@@ -45,11 +46,12 @@ def send(*arg,**kwargs):
 				
 		print(f"Client: Opening socket on {ip}:{port}")
 		with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, fsize)
 			s.connect((ip, port))
 			s.sendall(fname)        # send text or file name
 			s.sendall(bsize)        # send size in bytes
 			if file_flag:     
-				s.sendall(data)     # send file data ib bytes
+				s.sendall(data)     # send file data in bytes
 			print("Client: Sent data")
 		
 	except Exception as e:
