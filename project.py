@@ -13,19 +13,20 @@ def plot():
 
 	coeff=np.polyfit(nu[1:],Fnu[1:],1)
 	index=coeff[0]
-	print(f"\nCygnus radio spectral index = {index:.2f}")
 	power=index*nu+coeff[1]
 	
 # Plot data
 
 	plt.clf()
 	plt.scatter(nu,Fnu)
-	plt.plot(nu,Fnu,color='red',label='Measured')
-	plt.plot(nu,power,color='blue',label='Fitted')
+	plt.plot(nu,Fnu,color='red',label='Measured Flux')
+	plt.plot(nu,power,color='blue',label='Fitted Power Law')
 	plt.ylabel('log'+r'$_{10}\ F_\nu$'+' (W m-2 Hz-1)')
 	plt.xlabel('log'+r'$_{10}\ \nu$'+' (Hz)')
 	plt.legend()
 	plt.show(block=False)
+
+	print(f"\nCygnus radio spectral index = {index:.2f}")
 	
 # Compute area using trapezoidal rule on frequency vs monoschromatic flux
 # This yields total flux in watts per meter squared
