@@ -11,7 +11,7 @@ def plot():
 	
 # Compute linear least squares fit of power law
 
-	coeff=np.polyfit(nu[1:],Fnu[1:],1)
+	coeff=np.polyfit(nu[2:],Fnu[2:],1)
 	index=coeff[0]
 	power=index*nu+coeff[1]
 	
@@ -43,7 +43,7 @@ def plot():
 	print(f"Cygnus distance = {distance:.2e} meters")
 	luminosity=area*4*math.pi*distance**2
 	ergs=luminosity*10**7
-	print(f"Cygnus radio luminosity = {luminosity:.2e} Watts or {ergs:.2e} ergs/s")
+	print(f"Cygnus radio luminosity = {luminosity:.2e} Watts")
 		
 if __name__ == "__main__":
     plot()	
