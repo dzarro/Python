@@ -1,144 +1,144 @@
-import socket,time,threading,client,os
-buffer=1024
-download='C:\Python\Downloads'
+import socket,threading,os,hashlib,tools
+import udp_client as client
+
+DOWNLOAD_DIR='C:\Python\Downloads'
+PACKET_SIZE = 1024 + 50 
 
 def stop(**kwargs):
-	global jumble
-	ip = "127.0.0.1"
-	if 'ip' in kwargs:
-		ip=kwargs['ip']   
-		
-	port=8500
-	if 'port' in kwargs:
-		sport=kwargs['port']   
-		if isinstance(sport,int): 
-			port=sport
+
+	address=tools.address(**kwargs)
+	host=address[0]
+	port=address[1]
 	
 	if 'saved' not in globals():
 		print("Server: No sockets open")
 		return
 		
-	if (ip,port) not in saved:
-		print(f"Server: No socket open on {ip}:{port}")
+	if address not in saved:
+		print(f"Server: No socket open on {host}:{port}")
 		return
 		
-	s_thread,status=saved[(ip,port)]
+	s_thread,status=saved[address]
 	if not s_thread.is_alive():
-		print(f"Server: Socket already closed on {ip}:{port}")
-		del saved[(ip,port)]
+		print(f"Server: Socket already closed on {host}:{port}")
+		del saved[address]
 		return
 		
-	saved[(ip,port)]=(s_thread,False)
-	jumble=random_string(10)
-	client.send(jumble,ip=ip,port=port)
+	saved[address]=(s_thread,False)
+	client.send('Stop',host=host,port=port)
 	
-#####################################################################################
-def valid(*args):
-	if len(args) == 0:
-		return False
-	try:
-		args[0]
-	except NameError:
-		return False
-	else:
-		return True
-		
-		
-#####################################################################################
-def is_binary(file):
-		
-	if not isinstance(file,str):
-		print("Non-string input")
-		return False
-		
-	if not os.path.exists(file):
-		print("File not found")
-		return False
-		
-	try:
-		with open(file) as f:
-			data=f.read(1024)
-	except Exception as e:              		
-#		print(f"Error: {e}")
-		return True
-
-	return False
-		
-######################################################################################
-
-def random_string(length):
-	import random, string
-	characters = string.ascii_letters + string.digits
-	random_string = ''.join(random.choice(characters) for _ in range(length))
-	return random_string
-			
 #####################################################################################		
-def run(ip,port):
+def run(address):
 	
-	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-		s.bind((ip, port))
+	s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	s.bind(address)
+	received_packets = {}
+	total_packets = -1
+	filename = None
+	file_size = 0
+	host=address[0]
+	port=address[1]
+	
+	while True:
 		
-		while True:
-			try:
-				data, addr = s.recvfrom(buffer)
-				fname = data.decode()
-				data, addr = s.recvfrom(buffer)
-				asize=data.decode()
-				bsize=int(asize)
-				
-				if 'saved' in globals():
-					thread,status=saved[(ip,port)]
-					if not status:
-						break
-						
-				if bsize == 0:
-					print(f'Server: Received text "{fname}"')
-					if 'jumble' in globals():
-						if fname == jumble:
-							break			
-				else:
-					print(f'Server: Receiving file "{fname}" with size {asize} bytes')
-					data, addr = s.recvfrom(bsize)
-					print(f"Server: Received {len(data)} bytes: {data.decode()}")
-				
-			except Exception as e:              		
-					print(f"Error: {e}")
-					continue
+# Check for stop signal
 
 		if 'saved' in globals():
-			del saved[(ip,port)]
-		print(f"Server: Socket closed on {ip}:{port}")
+			thread,status=saved[address]
+			if not status:
+				break
+			
+		try:
+			data, addr = s.recvfrom(PACKET_SIZE+50)
+		
+# Handle different packet types
+ 
+			if data.startswith(b'HEADER:'):
+				header_data = data[7:]
+				ftype,filename,fsize,total_packets,MESSAGE_ID = header_data.decode().split(',')
+				file_size = int(fsize)
+				total_packets = int(total_packets)
+				if ftype == 'ASCII':
+					print(f"Received text: {filename} ")
+					continue
+					
+# Separate packet components
+# Verify MESSAGE_ID
+
+			elif data.startswith(b'DATA:') and ftype == 'FILE':
+				#print(f"Receiving file: {filename} with size: {file_size} bytes, # packets: {total_packets}")
+				message_id = data[5:22]
+				received_message_id=message_id.decode()
+				if received_message_id != MESSAGE_ID:
+					print("MESSAGE ID mismatch")
+					continue 
+					
+# Verify checksum
+
+				seq_num_bytes = data[22:30]
+				checksum_start = data.find(b'CHKSUM:')
+				chunk = data[30:checksum_start]
+				received_checksum = data[checksum_start+7:]
+			#	calculated_checksum = hashlib.md5(data[:checksum_start+7]).digest()\
+				calculated_checksum = hashlib.md5(chunk).digest()
+				
+				if received_checksum != calculated_checksum:
+					print(f"Checksum mismatch for packet {seq_num_bytes.decode()}. Packet corrupted.")
+					continue
+# Save chunk
+				seq_num = int(seq_num_bytes)
+				received_packets[seq_num] = chunk
+                
+# Send acknowledgement
+
+				ack_packet = b'ACK:' + message_id + seq_num_bytes
+				s.sendto(ack_packet, addr)
+				#print(f"Acknowledged packet {seq_num}/{total_packets}")
+				
+# Check for completion
+
+				if total_packets > 0 and len(received_packets) == total_packets:
+					with open(os.path.join(DOWNLOAD_DIR,filename), 'wb') as f:
+						for i in range(total_packets):
+							f.write(received_packets[i])		
+					print(f'File "{filename}" received successfully.')
+					received_packets = {}
+					total_packets = -1
+						
+		except s.timeout:
+			print("Socket timeout.")
+		except Exception as e:              		
+			print(f"Error: {e}")
+			print("Transfer failed or incomplete")
+			
+	if 'saved' in globals():
+		del saved[(host,port)]
+	print(f"Server: Socket closed on {host}:{port}")
 		
 #####################################################################################	
 def start(**kwargs):
-	global event,saved
+	global saved
 	
-	ip = "127.0.0.1"
-	if 'ip' in kwargs:
-		ip=kwargs['ip']   
-		
-	port=8500
-	if 'port' in kwargs:
-		sport=kwargs['port']   
-		if isinstance(sport,int): 
-			port=sport
+	address=tools.address(**kwargs)
+	host=address[0]
+	port=address[1]
 	
 	if 'saved' not in globals():
 		saved={}
 			
-	if (ip,port) in saved:
-		s_thread,started=saved[(ip,port)]
+	if address in saved:
+		s_thread,started=saved[address]
 		if s_thread.is_alive():
-			print(f"Server: Socket already listening on {ip}:{port}")
+			print(f"Server: Socket already listening on {host}:{port}")
 			return
 		else: 
-			del saved[(ip,port)]
+			del saved[address]
 		
-	print(f"Server: Socket listening for UDP packets on {ip}:{port}")
+	print(f"Server: Socket listening for UDP packets on {host}:{port}")
 	event=threading.Event()
-	thread=threading.Thread(target=run,args=(ip,port,))
+	thread=threading.Thread(target=run,args=(address,))
 	thread.start()
-	saved[(ip,port)]=(thread,True)
+	saved[(host,port)]=(thread,True)
 		
 #####################################################################################
 if __name__ == "__main__":

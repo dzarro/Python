@@ -125,9 +125,6 @@ def expand_name(*arg):
     file=os.path.normpath(file)
     return file
 
-
-
-
 #############################################################################
 # check if URL file/query has 'Content-Disposition'
 
@@ -206,5 +203,80 @@ def get_temp_dir():
         sys.exc_clear()
 
     return tdir
+##############################################################
+# create random string
 
+def str_random(length):
+	import random, string
+	characters = string.ascii_letters + string.digits
+	random_string = ''.join(random.choice(characters) for _ in range(length))
+	return random_string
+	
+##############################################################
+# break string into equal chunks
+	
+def str_chunk(text, chunk_size):
+	return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+	
+###############################################################
+# check if file is type binary
+
+def is_binary(*args):
+	import os
+		
+	if not valid(*args):
+		return False
+		
+	file=args[0]
+	if not isinstance(file,str):
+		print("Non-string input")
+		return False
+		
+	if not os.path.exists(file):
+		print("File not found")
+		return False
+		
+	try:
+		with open(file,'rb') as f:
+			data=f.read(1024)
+		data.decode()
+		
+	except Exception as e:              		
+		#print(f"Error: {e}")
+		return True
+
+	return False
+	
+################################################################
+# check if input aregument is valid
+
+def valid(*args):
+	if len(args) == 0:
+		return False
+	try:
+		args[0]
+	except NameError:
+		return False
+	else:
+		return True
+	
+################################################################
+# return (host,port) address tuple
+	
+def	address(**kwargs):
+	host = "127.0.0.1"
+	if 'host' in kwargs:
+		temp=kwargs['host']   
+		if isinstance(temp,str):
+			if len(temp) > 0:
+				host=temp
+		
+	port=8500
+	if 'port' in kwargs:	
+		temp=kwargs['port']   
+		if isinstance(temp,int): 
+			port=temp
+			
+	address=(host,port)
+	return address
 
