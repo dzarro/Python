@@ -1,43 +1,90 @@
-import socket,threading,os,hashlib,tools
-import udp_client as client
+"""	
+
+This function starts a UDP server on a specific host and port.
+Sample usage:
+
+>>> import udp_server as server
+>>> server.start(host=host,port=port) # starts server in a non-blocking thread
+>>> server.stop(host=host,port=port)  # stops the server
+ 
+Note: host and port are optional parameters that default to localhost and 8500, respectively.
+
+Written: Zarro (dmzarro@gmail.com) - 24 October, 2025
+
+"""
+
+import socket,threading,os,hashlib
+from udp_client import send
+from tools import get_address
 
 DOWNLOAD_DIR='C:\Python\Downloads'
 PACKET_SIZE = 1024 + 50 
 
-def stop(**kwargs):
+######################################################################################
 
-	address=tools.address(**kwargs)
-	host=address[0]
-	port=address[1]
+def start(**kwargs):
+	"""Starts the server"""
+
+	global saved
+	address=get_address(**kwargs)
+	
+	if 'saved' not in globals():
+		saved={}
+			
+	if address in saved:
+		s_thread,started=saved[address]
+		if s_thread.is_alive():
+			print(f"Server: Socket already listening on {address}")
+			return
+		else: 
+			del saved[address]
+		
+	thread=threading.Thread(target=run,args=(address,))
+	thread.start()
+	saved[address]=(thread,True)
+		
+#####################################################################################
+
+def stop(**kwargs):
+	"""Stops the server"""
+
+	address=get_address(**kwargs)
 	
 	if 'saved' not in globals():
 		print("Server: No sockets open")
 		return
 		
 	if address not in saved:
-		print(f"Server: No socket open on {host}:{port}")
+		print(f"Server: No socket open on {address}")
 		return
 		
 	s_thread,status=saved[address]
 	if not s_thread.is_alive():
-		print(f"Server: Socket already closed on {host}:{port}")
+		print(f"Server: Socket already closed on {address}")
 		del saved[address]
 		return
 		
 	saved[address]=(s_thread,False)
-	client.send('Stop',host=host,port=port)
-	
-#####################################################################################		
+	send('Stop',host=address[0],port=address[1])
+
+#######################################################################################	
+
 def run(address):
+	"""Opens a socket listening in a thread"""
 	
 	s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	s.bind(address)
+	print(f"Server: Socket listening for UDP packets on {address}")
+	
+	try:
+		s.bind(address)
+	except Exception as e:              		
+		print(f"Server Error: {e}")
+		return
+	
 	received_packets = {}
 	total_packets = -1
 	filename = None
 	file_size = 0
-	host=address[0]
-	port=address[1]
 	
 	while True:
 		
@@ -112,34 +159,11 @@ def run(address):
 			print("Transfer failed or incomplete")
 			
 	if 'saved' in globals():
-		del saved[(host,port)]
-	print(f"Server: Socket closed on {host}:{port}")
+		del saved[address]
+	print(f"Server: Socket closed on {address}")
+	s.close()
 		
 #####################################################################################	
-def start(**kwargs):
-	global saved
-	
-	address=tools.address(**kwargs)
-	host=address[0]
-	port=address[1]
-	
-	if 'saved' not in globals():
-		saved={}
-			
-	if address in saved:
-		s_thread,started=saved[address]
-		if s_thread.is_alive():
-			print(f"Server: Socket already listening on {host}:{port}")
-			return
-		else: 
-			del saved[address]
-		
-	print(f"Server: Socket listening for UDP packets on {host}:{port}")
-	event=threading.Event()
-	thread=threading.Thread(target=run,args=(address,))
-	thread.start()
-	saved[(host,port)]=(thread,True)
-		
-#####################################################################################
+
 if __name__ == "__main__":
     start()

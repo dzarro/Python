@@ -229,16 +229,18 @@ def is_binary(*args):
 		
 	file=args[0]
 	if not isinstance(file,str):
-		print("Non-string input")
+		#print("Non-string input")
 		return False
 		
 	if not os.path.exists(file):
-		print("File not found")
+		#print("File not found")
 		return False
 		
+	fsize=os.path.getsize(file)
+	buffer=min(fsize,1024)
 	try:
 		with open(file,'rb') as f:
-			data=f.read(1024)
+			data=f.read(buffer)
 		data.decode()
 		
 	except Exception as e:              		
@@ -263,8 +265,8 @@ def valid(*args):
 ################################################################
 # return (host,port) address tuple
 	
-def	address(**kwargs):
-	host = "127.0.0.1"
+def	get_address(**kwargs):
+	host = "localhost"
 	if 'host' in kwargs:
 		temp=kwargs['host']   
 		if isinstance(temp,str):

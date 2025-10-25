@@ -1,12 +1,27 @@
+"""	
 
-import socket,os,hashlib,tools
+This function sends a text string or a file to a UDP server running on a specific host and port.
+Sample usage:
+
+>>> import udp_client as client
+>>> client.send(filename,host=host,port=port)
+ 
+Note: host and port are optional parameters that default to localhost and 8500, respectively.
+
+Written: Zarro (dmzarro@gmail.com) - 24 October, 2025
+
+"""
+import socket,os,hashlib
+from tools import get_address,str_random
+
 PACKET_SIZE=1024
 TIMEOUT=0.5
 
 def send(*arg,**kwargs):
+	"""Sends data to the server"""
 	
-	address=tools.address(**kwargs)
-	MESSAGE_ID=tools.str_random(17)
+	address=get_address(**kwargs)
+	MESSAGE_ID=str_random(17)
 	verbose = False
 	if 'verbose' in kwargs:
 		verbose = True
@@ -19,7 +34,7 @@ def send(*arg,**kwargs):
 		
 	filename=arg[0]
 	if not isinstance(filename,str):
-		print("Client: Input must be a string")
+		print("Client: Input argument must be a string")
 		return 	
 
 # If filename is not a file, then assume it is text
@@ -42,14 +57,18 @@ def send(*arg,**kwargs):
 	print(f"Client: Number of packets = {num_packets}")
 	header_data=f"{ftype},{fheader},{fsize},{num_packets},{MESSAGE_ID}".encode()
 	
-	print(f"Client: Opening socket on {address[0]}:{address[1]}")
+	print(f"Client: Opening socket on {address}")
 	sock=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	sock.settimeout(TIMEOUT)
 	
 # Send header
 
 	print(f"Client: Sending header")
-	sock.sendto(b'HEADER:' + header_data, address)
+	try:
+		sock.sendto(b'HEADER:' + header_data, address)
+	except Exception as e:              		
+		print(f"Client: Error: {e}")
+		return
 	
 # Send data in chunks
 
