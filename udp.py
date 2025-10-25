@@ -1,24 +1,29 @@
 """	
 
-This function starts a UDP server on a specific host and port.
-Sample usage:
+This function starts a UDP server and client on a specific host and port.
 
->>> import udp_server as server
->>> server.start(host=host,port=port) # starts server in a non-blocking thread
->>> server.stop(host=host,port=port)  # stops the server
+On the server:
+
+>>> import udp 
+>>> udp.start(host=host,port=port) # starts server in a non-blocking thread
+>>> udp.stop(host=host,port=port)  # stops the server
+ 
+On the client:
+ 
+>>> import udp
+>>> udp.send(filename,host=host,port=port)   # sends file file named name to server
  
 Note: host and port are optional parameters that default to localhost and 8500, respectively.
+Ensure using same host and port on server and client.
 
 Written: Zarro (dmzarro@gmail.com) - 24 October, 2025
 
 """
 
-import socket,threading,os,hashlib
-from udp_client import send
-from tools import get_address
+import socket,os,hashlib,threading
+from tools import get_address,str_random
 
-DOWNLOAD_DIR='C:\Python\Downloads'
-PACKET_SIZE = 1024 + 50 
+DOWNLOAD_DIR='C:\Python\Downloads'     # change this to desired download directory on server
 
 ######################################################################################
 
@@ -50,6 +55,16 @@ def stop(**kwargs):
 
 	address=get_address(**kwargs)
 	
+	override = False
+	if 'override' in kwargs:
+		temp = kwargs['override']
+		if isinstance(temp,bool):
+			override=temp
+		
+	if override:
+		send('Stop',host=address[0],port=address[1])
+		return
+		
 	if 'saved' not in globals():
 		print("Server: No sockets open")
 		return
@@ -71,6 +86,8 @@ def stop(**kwargs):
 
 def run(address):
 	"""Opens a socket listening in a thread"""
+	
+	PACKET_SIZE = 1024 + 50 
 	
 	s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	print(f"Server: Socket listening for UDP packets on {address}")
@@ -106,7 +123,7 @@ def run(address):
 				file_size = int(fsize)
 				total_packets = int(total_packets)
 				if ftype == 'ASCII':
-					print(f"Received text: {filename} ")
+					print(f'Received text: "{filename}" on {address}')
 					continue
 					
 # Separate packet components
@@ -148,7 +165,7 @@ def run(address):
 					with open(os.path.join(DOWNLOAD_DIR,filename), 'wb') as f:
 						for i in range(total_packets):
 							f.write(received_packets[i])		
-					print(f'File "{filename}" received successfully.')
+					print(f'File "{filename}" received successfully on {address}')
 					received_packets = {}
 					total_packets = -1
 						
@@ -162,8 +179,107 @@ def run(address):
 		del saved[address]
 	print(f"Server: Socket closed on {address}")
 	s.close()
-		
-#####################################################################################	
+	
+#######################################################################################		
 
-if __name__ == "__main__":
-    start()
+def send(*arg,**kwargs):
+	"""Sends data to the server"""
+	
+	PACKET_SIZE=1024
+	TIMEOUT=0.5
+	MESSAGE_ID=str_random(17)
+	address=get_address(**kwargs)
+	
+	verbose=False
+	if 'verbose' in kwargs:
+		temp = kwargs['verbose']
+		if isinstance(temp,bool):
+			verbose=temp
+	
+# Do some input sanity checks
+
+	if len(arg) == 0:
+		print("Client: Blank input")
+		return 
+		
+	filename=arg[0]
+	if not isinstance(filename,str):
+		print("Client: Input argument must be a string")
+		return 	
+
+# If filename is not a file, then assume it is text
+
+	if os.path.exists(filename):
+		print(f'Client: Sending file "{filename}"')
+		fsize=os.path.getsize(filename)
+		print(f'Client: File size = {fsize} bytes')
+		ftype='FILE'
+		fheader=os.path.basename(filename)
+	else:
+		print("Client: Sending text")
+		fsize=len(filename)
+		ftype='ASCII'
+		fheader=filename
+		
+# Create header with send metadata
+
+	num_packets=(fsize+PACKET_SIZE-1)//PACKET_SIZE
+	print(f"Client: Number of packets = {num_packets}")
+	header_data=f"{ftype},{fheader},{fsize},{num_packets},{MESSAGE_ID}".encode()
+	
+	print(f"Client: Opening socket on {address}")
+	sock=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.settimeout(TIMEOUT)
+	
+# Send header
+
+	print(f"Client: Sending header")
+	try:
+		sock.sendto(b'HEADER:' + header_data, address)
+	except Exception as e:              		
+		print(f"Client: Error: {e}")
+		return
+	
+# Send data in chunks
+
+	if ftype == 'FILE':
+
+		f=open(filename, "rb") 
+		seq_num=0
+		while seq_num < num_packets:
+		
+			if verbose:
+				print(f"Client: Sending packet {seq_num}/{num_packets}")
+			chunk=f.read(PACKET_SIZE)
+			if not chunk:
+				break
+		
+# Send packet
+	
+			packet_data = b'DATA:' + MESSAGE_ID.encode() + str(seq_num).encode().zfill(8) + chunk
+			checksum = hashlib.md5(chunk).digest()
+			full_packet = packet_data + b'CHKSUM:' + checksum
+			sock.sendto(full_packet, address)
+
+# Wait for acknowledgement
+
+			try:
+				ack_packet, _ = sock.recvfrom(PACKET_SIZE)
+				if ack_packet == b'ACK:' + MESSAGE_ID.encode() + str(seq_num).encode().zfill(8):
+				#	print(f"Packet {seq_num}/{num_packets} acknowledged.")
+					seq_num += 1
+				else:
+					print(f"Invalid ACK for packet {seq_num}. Retrying...")
+			except socket.timeout:
+				print(f"Timeout waiting for ACK for packet {seq_num}. Retrying...")
+			except Exception as e:              		
+				print(f"Server: Error {e}")
+				print("Client: Send failed")
+				break
+		f.close()
+		if seq_num == num_packets:
+			print(f'Client: File "{filename}" sent successfully')
+	
+	print("Client: Closing socket")
+	sock.close()
+	
