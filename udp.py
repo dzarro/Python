@@ -11,7 +11,7 @@ On the server:
 On the client:
  
 >>> import udp
->>> udp.send(filename,host=host,port=port)   # sends file file named name to server
+>>> udp.send(filename,host=host,port=port)   # sends a file named filename or a text string called filename to server
  
 Note: host and port are optional parameters that default to localhost and 8500, respectively.
 Ensure using same host and port on server and client.
