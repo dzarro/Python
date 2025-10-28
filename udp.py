@@ -5,16 +5,19 @@ This function starts a UDP server and client on a specific host and port.
 On the server:
 
 >>> import udp 
->>> udp.start(host=host,port=port) # starts server in a non-blocking thread
+>>> udp.start(host=host,port=port) # starts the server in a non-blocking thread
 >>> udp.stop(host=host,port=port)  # stops the server
  
 On the client:
  
 >>> import udp
->>> udp.send(filename,host=host,port=port)   # sends a file named filename or a text string called filename to the server
+>>> udp.send(filename,host=host,port=port)   # sends a file named "filename" or a text string called "filename" to the server
  
-Note: host and port are optional parameters that default to localhost and 8500, respectively.
-Ensure using same host and port on server and client.
+Notes: 
+
+- host and port are optional parameters that default to localhost and 8500, respectively.
+- ensure using same host and port on server and client.
+- can run multiple servers with different hosts and ports
 
 Written: Zarro (dmzarro@gmail.com) - 24 October, 2025
 
