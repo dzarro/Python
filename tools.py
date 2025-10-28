@@ -282,3 +282,44 @@ def	get_address(**kwargs):
 	address=(host,port)
 	return address
 
+################################################################
+
+import socket
+def is_remote_address(address,timeout=1):
+	
+	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+		try:
+			s.settimeout(timeout)
+			result=s.connect_ex(address)
+		
+# if connect succeeds, the port available
+		
+			if result == 0:
+				return True
+			else:
+				return False
+			
+		except socket.gaierror:
+			print(f"Error: Hostname '{address[0]}' could not be resolved.")
+		except socket.error as e:
+			print(f"Error connecting to {address}: {e}")
+		except Exception as e:              		
+			print(f"Error: {e}")
+	return False
+		
+####################################################################################
+# check if local address is available
+
+import socket
+def is_local_address(address):
+
+	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+		try:
+			s.bind(address)  
+			return True
+		#except socket.error:
+		#	pass
+		except Exception as e:              		
+			print(f"Error: {e}")
+	return False
+			
