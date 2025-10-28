@@ -232,6 +232,7 @@ def send(*arg,**kwargs):
 	
 	print(f"Client: Opening socket on {address}")
 	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		sock.settimeout(TIMEOUT)
 	
 # Send header

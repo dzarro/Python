@@ -5,10 +5,10 @@
 # session - if string, write file to temp_dir/session 
 # outdir - if string, write file to outdir
 
+import os,socket,tempfile,sys,requests,re,sys
 
 def rdwrt(sock,filename,size,**kwargs):
    
-    import os, tempfile, sys
     
     session=None
     if 'session' in kwargs:
@@ -80,8 +80,7 @@ def rdwrt(sock,filename,size,**kwargs):
 # check if input directory exists and is writeable
 
 def valid_dir(*arg):
-
-    import os
+	
     result=(False,False)
     if not valid_arg(*arg,label='Directory name') : return result
     dir=expand_name(arg[0])
@@ -118,7 +117,6 @@ def valid_arg(*arg,**kwargs):
 
 def expand_name(*arg):
 
-    import os
     if not valid_arg(*arg): return None
     file=os.path.expandvars(arg[0])
     file=os.path.expanduser(file)
@@ -130,7 +128,7 @@ def expand_name(*arg):
 
 def disp_url(*arg):
 
-    import requests,re,sys
+   
     if not valid_arg(*arg): return None
 
     try:
@@ -221,9 +219,8 @@ def str_chunk(text, chunk_size):
 ###############################################################
 # check if file is type binary
 
-def is_binary(*args):
-	import os
-		
+def is_binary_file(*args):
+	
 	if not valid(*args):
 		return False
 		
